@@ -24,7 +24,7 @@ Berikan penjelasan yang:
 
 Gunakan bahasa Indonesia yang ramah, mudah dimengerti, dan tidak lebih dari 150 kata.`
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
     const result = await model.generateContent(prompt)
     return NextResponse.json({ penjelasan: result.response.text().trim() })
   } catch (e: unknown) {
