@@ -70,7 +70,7 @@ export default function SavedPage() {
             <i className="bi bi-bookmark text-2xl text-slate-600" />
           </div>
           <p className="font-semibold text-slate-300 mb-1">Belum ada soal tersimpan</p>
-          <p className="text-sm text-slate-500 mb-6">Selesaikan latihan lalu tekan "Simpan Soal Ini"</p>
+          <p className="text-sm text-slate-500 mb-6">Selesaikan latihan lalu tekan &ldquo;Simpan Soal Ini&rdquo;</p>
           <Link href="/generate"
             className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all">
             Generate Soal Sekarang
