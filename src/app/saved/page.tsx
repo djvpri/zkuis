@@ -59,10 +59,12 @@ export default function SavedPage() {
   const [deleteId, setDeleteId]     = useState<string | null>(null)
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected]     = useState<Set<string>>(new Set())
-  const [shuffleQ, setShuffleQ]     = useState(false)
-  const [shuffleA, setShuffleA]     = useState(false)
-  const [editId, setEditId]         = useState<string | null>(null)
-  const [editName, setEditName]     = useState('')
+  const [shuffleQ, setShuffleQ]       = useState(false)
+  const [shuffleA, setShuffleA]       = useState(false)
+  const [timerEnabled, setTimerEnabled] = useState(false)
+  const [timerDuration, setTimerDuration] = useState(30)
+  const [editId, setEditId]           = useState<string | null>(null)
+  const [editName, setEditName]       = useState('')
 
   useEffect(() => { setList(getSaved()) }, [])
 
@@ -86,12 +88,19 @@ export default function SavedPage() {
     setSelected(new Set())
   }
 
+  function makeTimer() {
+    return timerEnabled
+      ? { duration: timerDuration, endsAt: Date.now() + timerDuration * 60 * 1000 }
+      : null
+  }
+
   function handleStart(quiz: SavedQuiz) {
     const newId = crypto.randomUUID()
     sessionStorage.setItem(`zkuis_${newId}`, JSON.stringify({
       soal: prepSoal(quiz.soal),
       meta: quiz.meta,
       savedId: quiz.savedId,
+      timer: makeTimer(),
     }))
     router.push(`/quiz/${newId}`)
   }
@@ -126,7 +135,7 @@ export default function SavedPage() {
     const meta   = { topik, kategori: 'Gabungan', jumlah: merged.length, tipe: 'campuran', level: picked[0].meta.level }
 
     const newId = crypto.randomUUID()
-    sessionStorage.setItem(`zkuis_${newId}`, JSON.stringify({ soal: merged, meta }))
+    sessionStorage.setItem(`zkuis_${newId}`, JSON.stringify({ soal: merged, meta, timer: makeTimer() }))
     if (andSave) saveQuiz(merged, meta, null)
     router.push(`/quiz/${newId}`)
   }
@@ -181,20 +190,55 @@ export default function SavedPage() {
 
       {/* Settings panel — tampil saat ada soal & tidak di mode pilih */}
       {list.length > 0 && !selectMode && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl px-4 py-3 mb-5 flex items-center gap-6">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
-            <i className="bi bi-sliders text-slate-600" />
-            Pengaturan
+        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl px-4 py-3 mb-5">
+          <div className="flex items-center gap-2 mb-3">
+            <i className="bi bi-sliders text-slate-600 text-xs" />
+            <span className="text-xs text-slate-500 font-medium">Pengaturan Latihan</span>
+            {(shuffleQ || shuffleA || timerEnabled) && (
+              <span className="ml-auto text-[10px] bg-violet-500/15 text-violet-400 border border-violet-500/20 rounded-full px-2 py-0.5">
+                Aktif
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-5 flex-wrap">
+
+          {/* Shuffle */}
+          <div className="flex items-center gap-5 flex-wrap mb-3">
             <Toggle label="Acak Soal" value={shuffleQ} onChange={() => setShuffleQ(v => !v)} />
             <Toggle label="Acak Jawaban" value={shuffleA} onChange={() => setShuffleA(v => !v)} />
           </div>
-          {(shuffleQ || shuffleA) && (
-            <span className="ml-auto text-[10px] bg-violet-500/15 text-violet-400 border border-violet-500/20 rounded-full px-2 py-0.5 shrink-0">
-              Aktif
-            </span>
-          )}
+
+          {/* Timer */}
+          <div className="border-t border-slate-800 pt-3">
+            <div className="flex items-center gap-3 mb-2">
+              <Toggle label="Timer Ujian" value={timerEnabled} onChange={() => setTimerEnabled(v => !v)} />
+              {timerEnabled && (
+                <span className="text-xs text-amber-400 font-semibold ml-auto">
+                  <i className="bi bi-clock me-1" />{timerDuration} menit
+                </span>
+              )}
+            </div>
+            {timerEnabled && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {[15, 30, 60, 90].map(min => (
+                  <button key={min} onClick={() => setTimerDuration(min)}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-all ${
+                      timerDuration === min
+                        ? 'bg-amber-500/15 border-amber-500/50 text-amber-300'
+                        : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                    }`}>
+                    {min} mnt
+                  </button>
+                ))}
+                <div className="flex items-center gap-1.5">
+                  <input type="number" min={1} max={300} value={timerDuration}
+                    onChange={e => setTimerDuration(Math.max(1, Math.min(300, Number(e.target.value))))}
+                    className="w-14 bg-slate-800 border border-slate-700 focus:border-amber-500/50 rounded-lg px-2 py-1.5 text-xs text-white outline-none text-center"
+                  />
+                  <span className="text-xs text-slate-500">mnt</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
