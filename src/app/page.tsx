@@ -65,7 +65,7 @@ export default function HomePage() {
             <i className="bi bi-stars" /> Didukung Gemini AI
           </div>
 
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-black leading-[1.05] tracking-tight mb-6">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[1.05] tracking-tight mb-6">
             Bank Soal AI<br />
             <span className="gradient-text">Tak Pernah Kehabisan</span>
           </h1>
@@ -153,7 +153,7 @@ export default function HomePage() {
 
       {/* CTA Banner */}
       <section className="max-w-4xl mx-auto px-5 py-10 pb-24">
-        <div className="relative rounded-3xl bg-gradient-to-br from-violet-600/20 to-indigo-600/20 border border-violet-500/20 p-10 text-center overflow-hidden">
+        <div className="relative rounded-3xl bg-gradient-to-br from-violet-600/20 to-indigo-600/20 border border-violet-500/20 p-6 sm:p-10 text-center overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-900/30 to-transparent pointer-events-none" />
           <div className="relative">
             <h2 className="text-3xl font-black mb-3">Siap Latihan?</h2>
