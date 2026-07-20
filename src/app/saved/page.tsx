@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getSaved, deleteQuiz, saveQuiz, type SavedQuiz } from '@/lib/saved'
+import { getSaved, deleteQuiz, saveQuiz, renameQuiz, type SavedQuiz } from '@/lib/saved'
 
 const LEVEL_COLOR: Record<string, string> = {
   mudah: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -27,6 +27,8 @@ export default function SavedPage() {
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected]   = useState<Set<string>>(new Set())
   const [shuffle, setShuffle]     = useState(true)
+  const [editId, setEditId]       = useState<string | null>(null)
+  const [editName, setEditName]   = useState('')
 
   useEffect(() => { setList(getSaved()) }, [])
 
@@ -51,6 +53,20 @@ export default function SavedPage() {
       savedId: quiz.savedId,
     }))
     router.push(`/quiz/${newId}`)
+  }
+
+  function startEdit(quiz: SavedQuiz) {
+    setEditId(quiz.savedId)
+    setEditName(quiz.meta.topik)
+  }
+
+  function confirmEdit() {
+    if (!editId || !editName.trim()) { setEditId(null); return }
+    renameQuiz(editId, editName)
+    setList(prev => prev.map(q =>
+      q.savedId === editId ? { ...q, meta: { ...q.meta, topik: editName.trim() } } : q
+    ))
+    setEditId(null)
   }
 
   function handleDelete(savedId: string) {
@@ -183,11 +199,42 @@ export default function SavedPage() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate">{quiz.meta.topik}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{formatDate(quiz.savedAt)}</p>
+                    {editId === quiz.savedId ? (
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        <input
+                          autoFocus
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') confirmEdit(); if (e.key === 'Escape') setEditId(null) }}
+                          className="flex-1 bg-slate-800 border border-violet-500 rounded-lg px-2.5 py-1 text-sm text-white outline-none min-w-0"
+                        />
+                        <button onClick={confirmEdit}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 text-white shrink-0">
+                          <i className="bi bi-check-lg text-sm" />
+                        </button>
+                        <button onClick={() => setEditId(null)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-400 shrink-0">
+                          <i className="bi bi-x-lg text-xs" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 group/title">
+                        <p className="font-semibold text-sm truncate">{quiz.meta.topik}</p>
+                        {!selectMode && (
+                          <button
+                            onClick={e => { e.stopPropagation(); startEdit(quiz) }}
+                            className="opacity-0 group-hover/title:opacity-100 w-5 h-5 flex items-center justify-center rounded text-slate-500 hover:text-slate-300 transition-all shrink-0">
+                            <i className="bi bi-pencil text-[10px]" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {editId !== quiz.savedId && (
+                      <p className="text-xs text-slate-500 mt-0.5">{formatDate(quiz.savedAt)}</p>
+                    )}
                   </div>
                 </div>
-                <ScoreBadge score={quiz.bestScore} />
+                {editId !== quiz.savedId && <ScoreBadge score={quiz.bestScore} />}
               </div>
 
               {/* Badges */}

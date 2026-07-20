@@ -53,3 +53,12 @@ export function deleteQuiz(savedId: string) {
   const list = getSaved().filter(q => q.savedId !== savedId)
   localStorage.setItem(KEY, JSON.stringify(list))
 }
+
+export function renameQuiz(savedId: string, newName: string) {
+  const list = getSaved()
+  const item = list.find(q => q.savedId === savedId)
+  if (item) {
+    item.meta.topik = newName.trim() || item.meta.topik
+    localStorage.setItem(KEY, JSON.stringify(list))
+  }
+}
