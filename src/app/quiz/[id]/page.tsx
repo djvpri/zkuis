@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -25,8 +25,8 @@ const OPSI_COLOR = {
   wrong:    'bg-red-600/20 border-red-500 text-red-300',
 }
 
-export default function QuizPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function QuizPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const router  = useRouter()
 
   const [data, setData]           = useState<QuizData | null>(null)

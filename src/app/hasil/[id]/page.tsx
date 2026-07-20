@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -13,8 +13,8 @@ interface HasilData {
   hasil: Record<number, { jawaban: string; benar: boolean }>
 }
 
-export default function HasilPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function HasilPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const router  = useRouter()
   const [data, setData]     = useState<HasilData | null>(null)
   const [expand, setExpand] = useState<number | null>(null)
