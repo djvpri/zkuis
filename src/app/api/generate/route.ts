@@ -55,15 +55,19 @@ Kembalikan HANYA JSON valid dengan format berikut (tanpa markdown, tanpa teks ta
   ]
 }`
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: { responseMimeType: 'application/json' } as any,
+    })
     const result = await model.generateContent(prompt)
     const text = result.response.text().trim()
 
-    // Bersihkan markdown code block jika ada
-    const json = text.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim()
-    const parsed = JSON.parse(json)
+    // Ekstrak JSON dari response (handle thinking tokens & code blocks)
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('Tidak ada JSON dalam respons AI')
+    const parsed = JSON.parse(match[0])
 
-    if (!parsed.soal || !Array.isArray(parsed.soal))
+    if (!parsed.soal || !Array.isArray(parsed.soal) || parsed.soal.length === 0)
       throw new Error('Format respons AI tidak valid')
 
     return NextResponse.json({ soal: parsed.soal })

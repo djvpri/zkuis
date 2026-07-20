@@ -50,16 +50,24 @@ export default function QuizPage({ params }: { params: Promise<{ id: string }> }
     </div>
   )
 
-  const soalList  = data.soal
+  const soalList  = data.soal ?? []
   const total     = soalList.length
+
+  if (total === 0) return (
+    <div className="min-h-dvh flex flex-col items-center justify-center gap-4 text-center px-4">
+      <p className="text-slate-400">Data soal tidak ditemukan.</p>
+      <a href="/generate" className="text-violet-400 underline text-sm">Kembali ke Generate</a>
+    </div>
+  )
+
   const soal      = soalList[idx]
-  const isPG      = soal.tipe === 'pilihan_ganda'
+  const isPG      = soal?.tipe === 'pilihan_ganda'
   const progress  = ((idx) / total) * 100
 
   function getOpsiClass(key: string) {
     if (!checked) return selected === key ? OPSI_COLOR.selected : OPSI_COLOR.default
-    if (key === soal.jawaban) return OPSI_COLOR.correct
-    if (key === selected && key !== soal.jawaban) return OPSI_COLOR.wrong
+    if (key === soal?.jawaban) return OPSI_COLOR.correct
+    if (key === selected && key !== soal?.jawaban) return OPSI_COLOR.wrong
     return OPSI_COLOR.default
   }
 
