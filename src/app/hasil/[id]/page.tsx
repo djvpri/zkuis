@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { saveQuiz, updateBestScore } from '@/lib/saved'
 
 interface Soal {
   id: number; pertanyaan: string; tipe: string
@@ -11,18 +12,31 @@ interface HasilData {
   soal: Soal[]
   meta: { topik: string; kategori: string; jumlah: number; tipe: string; level: string }
   hasil: Record<number, { jawaban: string; benar: boolean }>
+  savedId?: string
 }
 
 export default function HasilPage({ params }: { params: { id: string } }) {
   const { id } = params
   const router  = useRouter()
-  const [data, setData]     = useState<HasilData | null>(null)
-  const [expand, setExpand] = useState<number | null>(null)
+  const [data, setData]         = useState<HasilData | null>(null)
+  const [expand, setExpand]     = useState<number | null>(null)
+  const [savedId, setSavedId]   = useState<string | null>(null)
+  const [justSaved, setJustSaved] = useState(false)
 
   useEffect(() => {
     const raw = sessionStorage.getItem(`zkuis_hasil_${id}`)
     if (!raw) { router.replace('/generate'); return }
-    setData(JSON.parse(raw))
+    const parsed: HasilData = JSON.parse(raw)
+    setData(parsed)
+
+    if (parsed.savedId) {
+      setSavedId(parsed.savedId)
+      // Update best score jika ini adalah replay dari soal tersimpan
+      const pg = parsed.soal.filter(s => s.tipe === 'pilihan_ganda').length
+      const bn = Object.values(parsed.hasil).filter(h => h.benar).length
+      const sk = pg > 0 ? Math.round((bn / pg) * 100) : 100
+      updateBestScore(parsed.savedId, sk)
+    }
   }, [id, router])
 
   if (!data) return (
@@ -37,6 +51,15 @@ export default function HasilPage({ params }: { params: { id: string } }) {
   const skorColor = skor >= 80 ? 'text-emerald-400' : skor >= 60 ? 'text-amber-400' : 'text-red-400'
   const skorLabel = skor >= 80 ? 'Luar Biasa!' : skor >= 60 ? 'Cukup Baik' : 'Perlu Latihan Lagi'
   const skorDesc  = skor >= 80 ? 'Penguasaan materimu sangat baik.' : skor >= 60 ? 'Terus berlatih untuk hasil lebih baik.' : 'Jangan menyerah, ulangi latihan ini.'
+
+  function handleSave() {
+    if (savedId) return
+    const newId = saveQuiz(data.soal, data.meta, skor)
+    const updated = { ...data, savedId: newId }
+    sessionStorage.setItem(`zkuis_hasil_${id}`, JSON.stringify(updated))
+    setSavedId(newId)
+    setJustSaved(true)
+  }
 
   return (
     <div className="min-h-dvh max-w-2xl mx-auto px-4 py-8 pb-16">
@@ -93,12 +116,12 @@ export default function HasilPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Actions */}
-      <div className="grid grid-cols-2 gap-3 mb-8">
+      <div className="grid grid-cols-2 gap-3 mb-3">
         <Link href={`/quiz/${id}`} onClick={() => {
           const raw = sessionStorage.getItem(`zkuis_hasil_${id}`)
           if (raw) {
             const d = JSON.parse(raw)
-            sessionStorage.setItem(`zkuis_${id}`, JSON.stringify({ soal: d.soal, meta: d.meta }))
+            sessionStorage.setItem(`zkuis_${id}`, JSON.stringify({ soal: d.soal, meta: d.meta, savedId: d.savedId }))
           }
         }}
           className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-slate-800 border border-slate-700 hover:border-slate-500 text-sm font-semibold transition-all">
@@ -109,6 +132,25 @@ export default function HasilPage({ params }: { params: { id: string } }) {
           <i className="bi bi-plus-lg" /> Soal Baru
         </Link>
       </div>
+
+      {/* Tombol Simpan */}
+      <button onClick={handleSave} disabled={!!savedId}
+        className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold border transition-all mb-8 ${
+          savedId
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 cursor-default'
+            : 'bg-slate-900 border-slate-700 hover:border-violet-500/50 hover:text-violet-300 text-slate-300'
+        }`}>
+        <i className={`bi ${savedId ? 'bi-bookmark-check-fill' : 'bi-bookmark-plus'}`} />
+        {savedId
+          ? justSaved ? 'Soal berhasil disimpan!' : 'Soal Tersimpan'
+          : 'Simpan Soal Ini'}
+        {savedId && (
+          <Link href="/saved" onClick={e => e.stopPropagation()}
+            className="ml-2 text-xs text-slate-400 hover:text-white underline underline-offset-2">
+            Lihat
+          </Link>
+        )}
+      </button>
 
       {/* Review soal */}
       <h2 className="font-bold mb-4 flex items-center gap-2">

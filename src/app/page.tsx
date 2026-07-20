@@ -40,6 +40,10 @@ export default function HomePage() {
               className="text-sm text-slate-400 hover:text-white transition-colors hidden sm:block">
               ZOne SSO
             </Link>
+            <Link href="/saved"
+              className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors hidden sm:flex">
+              <i className="bi bi-bookmark" /> Tersimpan
+            </Link>
             <Link href="/generate"
               className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all active:scale-95">
               Mulai Latihan
