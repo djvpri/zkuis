@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -15,6 +15,8 @@ interface Soal {
 interface QuizData {
   soal: Soal[]
   meta: { topik: string; kategori: string; jumlah: number; tipe: string; level: string }
+  savedId?: string
+  timer?: { duration: number; endsAt: number } | null
 }
 
 const OPSI_LABEL = ['A', 'B', 'C', 'D']
@@ -23,6 +25,13 @@ const OPSI_COLOR = {
   selected: 'bg-violet-600/20 border-violet-500 text-white',
   correct:  'bg-emerald-600/20 border-emerald-500 text-emerald-300',
   wrong:    'bg-red-600/20 border-red-500 text-red-300',
+}
+
+function formatTime(ms: number) {
+  const totalSec = Math.ceil(ms / 1000)
+  const min = Math.floor(totalSec / 60)
+  const sec = totalSec % 60
+  return `${min}:${sec.toString().padStart(2, '0')}`
 }
 
 export default function QuizPage({ params }: { params: { id: string } }) {
@@ -37,12 +46,44 @@ export default function QuizPage({ params }: { params: { id: string } }) {
   const [hasil, setHasil]         = useState<Record<number, { jawaban: string; benar: boolean }>>({})
   const [explain, setExplain]     = useState('')
   const [loadExplain, setLoadExplain] = useState(false)
+  const [remaining, setRemaining] = useState<number | null>(null)
+
+  const hasilRef    = useRef(hasil)
+  const endedRef    = useRef(false)
+
+  useEffect(() => { hasilRef.current = hasil }, [hasil])
 
   useEffect(() => {
     const raw = sessionStorage.getItem(`zkuis_${id}`)
     if (!raw) { router.replace('/generate'); return }
     setData(JSON.parse(raw))
   }, [id, router])
+
+  // Countdown timer
+  useEffect(() => {
+    if (!data?.timer) return
+    const endsAt = data.timer.endsAt
+
+    const tick = () => {
+      const r = Math.max(0, endsAt - Date.now())
+      setRemaining(r)
+      if (r <= 0 && !endedRef.current) {
+        endedRef.current = true
+        sessionStorage.setItem(`zkuis_hasil_${id}`, JSON.stringify({ ...data, hasil: hasilRef.current }))
+        router.push(`/hasil/${id}`)
+      }
+    }
+    tick()
+    const iv = setInterval(tick, 500)
+    return () => clearInterval(iv)
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data])
+
+  const timerTotal = data?.timer ? data.timer.duration * 60 * 1000 : 1
+  const timerPct   = remaining !== null ? remaining / timerTotal : 1
+  const timerColor = timerPct > 0.2 ? 'text-slate-300' : timerPct > 0.1 ? 'text-amber-400' : 'text-red-400'
+  const timerPulse = timerPct <= 0.1 ? 'animate-pulse' : ''
 
   if (!data) return (
     <div className="min-h-dvh flex items-center justify-center">
@@ -62,7 +103,7 @@ export default function QuizPage({ params }: { params: { id: string } }) {
 
   const soal      = soalList[idx]
   const isPG      = soal?.tipe === 'pilihan_ganda'
-  const progress  = ((idx) / total) * 100
+  const progress  = (idx / total) * 100
 
   function getOpsiClass(key: string) {
     if (!checked) return selected === key ? OPSI_COLOR.selected : OPSI_COLOR.default
@@ -75,7 +116,7 @@ export default function QuizPage({ params }: { params: { id: string } }) {
     if (!checked && (selected || essayAns.trim())) {
       setChecked(true)
       const jawaban = isPG ? (selected || '') : essayAns.trim()
-      const benar = isPG ? jawaban === soal.jawaban : true // essay selalu "benar" (dinilai sendiri)
+      const benar   = isPG ? jawaban === soal.jawaban : true
       setHasil(prev => ({ ...prev, [soal.id]: { jawaban, benar } }))
     }
   }
@@ -90,7 +131,7 @@ export default function QuizPage({ params }: { params: { id: string } }) {
         body: JSON.stringify({
           pertanyaan: soal.pertanyaan,
           jawaban_benar: isPG ? `${soal.jawaban}. ${soal.opsi?.[soal.jawaban]}` : soal.jawaban,
-          jawaban_user: isPG ? `${selected}. ${soal.opsi?.[selected || '']}` : essayAns,
+          jawaban_user:  isPG ? `${selected}. ${soal.opsi?.[selected || '']}` : essayAns,
           pembahasan: soal.pembahasan,
         }),
       })
@@ -109,7 +150,6 @@ export default function QuizPage({ params }: { params: { id: string } }) {
       setChecked(false)
       setExplain('')
     } else {
-      // Simpan hasil
       const finalHasil = { ...hasil }
       if (!finalHasil[soal.id] && (selected || essayAns.trim())) {
         const jawaban = isPG ? (selected || '') : essayAns.trim()
@@ -121,25 +161,42 @@ export default function QuizPage({ params }: { params: { id: string } }) {
   }
 
   const isAnswered = isPG ? selected !== null : essayAns.trim().length > 0
-  const isWrong = checked && isPG && selected !== soal.jawaban
+  const isWrong    = checked && isPG && selected !== soal.jawaban
 
   return (
     <div className="min-h-dvh flex flex-col max-w-2xl mx-auto px-4 py-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <Link href="/generate" className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 transition-colors text-slate-400">
           <i className="bi bi-x-lg text-sm" />
         </Link>
         <div className="text-sm font-semibold text-slate-400">
           <span className="text-white">{idx + 1}</span> / {total}
         </div>
-        <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 text-xs font-bold text-amber-400">
-          {Object.values(hasil).filter(h => h.benar).length}
+        <div className="flex items-center gap-2">
+          {remaining !== null && (
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 font-mono font-bold text-sm ${timerColor} ${timerPulse}`}>
+              <i className="bi bi-clock text-xs" />
+              {formatTime(remaining)}
+            </div>
+          )}
+          <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-800 text-xs font-bold text-amber-400">
+            {Object.values(hasil).filter(h => h.benar).length}
+          </div>
         </div>
       </div>
 
-      {/* Progress bar */}
+      {/* Timer progress bar (only if timer active) */}
+      {remaining !== null && (
+        <div className="h-1 bg-slate-800 rounded-full mb-2 overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-500 ${
+            timerPct > 0.2 ? 'bg-violet-500' : timerPct > 0.1 ? 'bg-amber-500' : 'bg-red-500'
+          }`} style={{ width: `${timerPct * 100}%` }} />
+        </div>
+      )}
+
+      {/* Progress bar soal */}
       <div className="h-1.5 bg-slate-800 rounded-full mb-8 overflow-hidden">
         <div className="h-full bg-gradient-to-r from-violet-600 to-indigo-500 rounded-full transition-all duration-500"
           style={{ width: `${progress}%` }} />
@@ -196,7 +253,6 @@ export default function QuizPage({ params }: { params: { id: string } }) {
             )}
             <p className="text-slate-400">{soal.pembahasan}</p>
 
-            {/* Tombol Kenapa? — hanya untuk PG yang salah */}
             {isWrong && (
               <div className="mt-3 pt-3 border-t border-red-500/10">
                 {explain ? (
