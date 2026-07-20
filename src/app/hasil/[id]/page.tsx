@@ -53,7 +53,7 @@ export default function HasilPage({ params }: { params: { id: string } }) {
   const skorDesc  = skor >= 80 ? 'Penguasaan materimu sangat baik.' : skor >= 60 ? 'Terus berlatih untuk hasil lebih baik.' : 'Jangan menyerah, ulangi latihan ini.'
 
   function handleSave() {
-    if (savedId) return
+    if (savedId || !data) return
     const newId = saveQuiz(data.soal, data.meta, skor)
     const updated = { ...data, savedId: newId }
     sessionStorage.setItem(`zkuis_hasil_${id}`, JSON.stringify(updated))
