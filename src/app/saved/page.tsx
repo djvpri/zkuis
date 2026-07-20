@@ -68,7 +68,7 @@ export default function SavedPage() {
       // Fisher-Yates shuffle
       for (let i = merged.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1))
-        ;[merged[i], merged[j]] = [merged[j], merged[i]]
+        const tmp = merged[i]; merged[i] = merged[j]; merged[j] = tmp
       }
     }
     // Re-number id
