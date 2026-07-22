@@ -11,6 +11,22 @@ type Level = 'mudah' | 'sedang' | 'sulit'
 const KATEGORI = ['SMA / SMP', 'Perguruan Tinggi', 'CPNS / Sertifikasi', 'Umum / Trivia', 'IT & Coding', 'Kesehatan & Sains']
 const JUMLAH   = [10, 20, 50, 100]
 
+const MAX_FILE_MB = 10
+const MAX_TOTAL_MB = 15
+const ACCEPT = 'application/pdf,image/png,image/jpeg,image/webp'
+
+function fmtSize(b: number) { return b < 1024 * 1024 ? `${Math.round(b / 1024)} KB` : `${(b / 1024 / 1024).toFixed(1)} MB` }
+
+// File -> base64 (tanpa prefix data URI) untuk dikirim ke Gemini sebagai inlineData.
+function fileToInline(file: File): Promise<{ mimeType: string; data: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve({ mimeType: file.type, data: (reader.result as string).split(',')[1] })
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
 function GenerateForm() {
   const router       = useRouter()
   const searchParams = useSearchParams()
@@ -18,6 +34,7 @@ function GenerateForm() {
   const [mode, setMode]         = useState<Mode>((searchParams.get('mode') as Mode) || 'topik')
   const [topik, setTopik]       = useState('')
   const [materi, setMateri]     = useState('')
+  const [files, setFiles]       = useState<File[]>([])
   const [kategori, setKategori] = useState(searchParams.get('kategori') || KATEGORI[0])
   const [jumlah, setJumlah]     = useState(10)
   const [tipe, setTipe]         = useState<Tipe>('pilihan_ganda')
@@ -32,17 +49,34 @@ function GenerateForm() {
     fetch('/api/auth/me').then((r) => { if (r.status === 401) router.replace('/login') }).catch(() => {})
   }, [router])
 
-  const canSubmit = mode === 'topik' ? topik.trim().length >= 3 : materi.trim().length >= 50
+  const canSubmit = mode === 'topik' ? topik.trim().length >= 3 : (materi.trim().length >= 50 || files.length > 0)
+
+  function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files || [])
+    e.target.value = '' // izinkan pilih file yang sama lagi
+    if (!picked.length) return
+    const tooBig = picked.find(f => f.size > MAX_FILE_MB * 1024 * 1024)
+    if (tooBig) { setError(`File "${tooBig.name}" melebihi ${MAX_FILE_MB} MB`); return }
+    setFiles(prev => {
+      const next = [...prev, ...picked]
+      const total = next.reduce((s, f) => s + f.size, 0)
+      if (total > MAX_TOTAL_MB * 1024 * 1024) { setError(`Total lampiran melebihi ${MAX_TOTAL_MB} MB`); return prev }
+      setError('')
+      return next
+    })
+  }
+  function removeFile(i: number) { setFiles(prev => prev.filter((_, idx) => idx !== i)) }
 
   async function handleGenerate() {
     if (!canSubmit) return
     setLoading(true)
     setError('')
     try {
+      const lampiran = mode === 'materi' && files.length ? await Promise.all(files.map(fileToInline)) : []
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, topik: topik.trim(), materi: materi.trim(), kategori, jumlah, tipe, level }),
+        body: JSON.stringify({ mode, topik: topik.trim(), materi: materi.trim(), kategori, jumlah, tipe, level, lampiran }),
       })
       if (res.status === 401) { router.replace('/login'); return }
       const data = await res.json()
@@ -104,15 +138,40 @@ function GenerateForm() {
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Paste Materi Kamu *</label>
+              <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Materi Soal *</label>
               <textarea
-                value={materi} onChange={e => setMateri(e.target.value)} rows={7}
-                placeholder="Tempel teks dari buku, catatan, slide, atau artikel di sini. Gemini akan membuat soal dari konten ini..."
+                value={materi} onChange={e => setMateri(e.target.value)} rows={5}
+                placeholder="Tempel teks dari buku, catatan, slide, atau artikel di sini — ATAU upload PDF/gambar di bawah."
                 className="w-full bg-slate-900 border border-slate-700 focus:border-violet-500 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition-colors resize-none"
               />
-              <p className={`text-xs mt-1.5 ${materi.length < 50 ? 'text-slate-600' : 'text-emerald-500'}`}>
-                {materi.length} karakter {materi.length < 50 ? '(minimal 50)' : '✓'}
+              <p className={`text-xs mt-1.5 ${(materi.length >= 50 || files.length > 0) ? 'text-emerald-500' : 'text-slate-600'}`}>
+                {files.length > 0
+                  ? `${files.length} lampiran · teks jadi opsional`
+                  : `${materi.length} karakter ${materi.length < 50 ? '(minimal 50, atau upload file)' : '✓'}`}
               </p>
+
+              {/* Upload PDF / gambar */}
+              <label className="mt-3 flex items-center justify-center gap-2 cursor-pointer border-2 border-dashed border-slate-700 hover:border-violet-500/60 rounded-xl px-4 py-4 text-sm text-slate-400 hover:text-violet-300 transition-colors">
+                <i className="bi bi-cloud-arrow-up text-lg" />
+                <span>Upload PDF atau gambar (bisa beberapa)</span>
+                <input type="file" accept={ACCEPT} multiple className="hidden" onChange={onPickFiles} />
+              </label>
+              <p className="text-xs text-slate-600 mt-1.5">PDF / PNG / JPG / WebP · maks {MAX_FILE_MB}MB per file, total {MAX_TOTAL_MB}MB. Gemini membaca isinya langsung.</p>
+
+              {files.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {files.map((f, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm">
+                      <i className={`bi ${f.type === 'application/pdf' ? 'bi-file-earmark-pdf text-red-400' : 'bi-file-earmark-image text-violet-400'} shrink-0`} />
+                      <span className="flex-1 truncate text-slate-300">{f.name}</span>
+                      <span className="text-xs text-slate-500 shrink-0">{fmtSize(f.size)}</span>
+                      <button type="button" onClick={() => removeFile(i)} className="text-slate-500 hover:text-red-400 shrink-0" aria-label="Hapus">
+                        <i className="bi bi-x-lg text-xs" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

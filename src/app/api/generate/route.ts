@@ -12,12 +12,21 @@ export async function POST(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Sesi berakhir. Masuk lewat Z One.' }, { status: 401 })
   try {
-    const { mode, topik, materi, kategori, jumlah, tipe, level } = await req.json()
+    const { mode, topik, materi, kategori, jumlah, tipe, level, lampiran } = await req.json()
+
+    // Lampiran multimodal (PDF/gambar) → inlineData untuk Gemini.
+    const allowed = (m: string) => m === 'application/pdf' || (typeof m === 'string' && m.startsWith('image/'))
+    const fileParts = (Array.isArray(lampiran) ? lampiran : [])
+      .filter((f: { data?: unknown; mimeType?: string }) => f && typeof f.data === 'string' && allowed(f.mimeType || ''))
+      .slice(0, 12)
+      .map((f: { data: string; mimeType: string }) => ({ inlineData: { data: f.data, mimeType: f.mimeType } }))
+    const totalB64 = fileParts.reduce((s, p) => s + p.inlineData.data.length, 0)
+    if (totalB64 > 22 * 1024 * 1024) return NextResponse.json({ error: 'Lampiran terlalu besar (maks ~15MB)' }, { status: 413 })
 
     if (mode === 'topik' && (!topik || topik.length < 3))
       return NextResponse.json({ error: 'Topik terlalu pendek' }, { status: 400 })
-    if (mode === 'materi' && (!materi || materi.length < 50))
-      return NextResponse.json({ error: 'Materi terlalu pendek (minimal 50 karakter)' }, { status: 400 })
+    if (mode === 'materi' && fileParts.length === 0 && (!materi || materi.length < 50))
+      return NextResponse.json({ error: 'Isi materi (min 50 karakter) atau upload PDF/gambar' }, { status: 400 })
 
     const tipeSoalLabel = tipe === 'pilihan_ganda' ? 'pilihan ganda (4 opsi A-D)'
       : tipe === 'essay' ? 'essay (jawaban terbuka)'
@@ -25,7 +34,9 @@ export async function POST(req: NextRequest) {
 
     const sumberLabel = mode === 'topik'
       ? `topik: "${topik}" (kategori: ${kategori}, tingkat kesulitan: ${level})`
-      : `teks/materi berikut ini:\n\n${materi}\n\n(tingkat kesulitan: ${level})`
+      : fileParts.length
+        ? `dokumen/gambar yang DILAMPIRKAN${materi && materi.length ? `, dengan catatan tambahan:\n${materi}` : ''} (tingkat kesulitan: ${level}). Baca isi seluruh lampiran dengan teliti sebagai sumber utama soal`
+        : `teks/materi berikut ini:\n\n${materi}\n\n(tingkat kesulitan: ${level})`
 
     const prompt = `Kamu adalah pembuat soal ujian profesional dalam Bahasa Indonesia.
 
@@ -68,7 +79,7 @@ Kembalikan HANYA JSON valid dengan format berikut (tanpa markdown, tanpa teks ta
         temperature: 1,
       },
     })
-    const result = await model.generateContent(prompt)
+    const result = await model.generateContent(fileParts.length ? [{ text: prompt }, ...fileParts] : prompt)
     const text = result.response.text().trim()
 
     // Ekstrak JSON dari response (handle thinking tokens & code blocks)
