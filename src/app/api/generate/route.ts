@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { getSession } from '@/lib/session'
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 export async function POST(req: NextRequest) {
+  // Wajib login SSO — lindungi kuota Gemini dari penyalahgunaan.
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Sesi berakhir. Masuk lewat Z One.' }, { status: 401 })
   try {
     const { mode, topik, materi, kategori, jumlah, tipe, level } = await req.json()
 

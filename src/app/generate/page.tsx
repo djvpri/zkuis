@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Suspense } from 'react'
@@ -25,6 +25,11 @@ function GenerateForm() {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
 
+  // Gate: wajib login SSO Zomet untuk memakai generator (lindungi kuota AI).
+  useEffect(() => {
+    fetch('/api/auth/me').then((r) => { if (r.status === 401) router.replace('/login') }).catch(() => {})
+  }, [router])
+
   const canSubmit = mode === 'topik' ? topik.trim().length >= 3 : materi.trim().length >= 50
 
   async function handleGenerate() {
@@ -37,6 +42,7 @@ function GenerateForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode, topik: topik.trim(), materi: materi.trim(), kategori, jumlah, tipe, level }),
       })
+      if (res.status === 401) { router.replace('/login'); return }
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Gagal generate soal')
 
