@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getSaved, deleteQuiz, saveQuiz, renameQuiz, type SavedQuiz, type SoalItem } from '@/lib/saved'
+import { exportSoalPDF } from '@/lib/pdf'
 
 const LEVEL_COLOR: Record<string, string> = {
   mudah: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -57,6 +58,7 @@ export default function SavedPage() {
   const router  = useRouter()
   const [list, setList]             = useState<SavedQuiz[]>([])
   const [deleteId, setDeleteId]     = useState<string | null>(null)
+  const [pdfId, setPdfId]           = useState<string | null>(null)
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected]     = useState<Set<string>>(new Set())
   const [shuffleQ, setShuffleQ]       = useState(false)
@@ -349,12 +351,34 @@ export default function SavedPage() {
 
               {/* Actions */}
               {!selectMode && (
-                <div className="flex gap-2 mt-4">
+                <div className="flex flex-wrap gap-2 mt-4">
                   <button onClick={() => handleStart(quiz)}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-all active:scale-[0.98]">
                     <i className="bi bi-play-fill" /> Mulai Latihan
                     {(shuffleQ || shuffleA) && <i className="bi bi-shuffle text-white/60 text-xs" />}
                   </button>
+                  {pdfId === quiz.savedId ? (
+                    <div className="flex gap-1.5">
+                      <button onClick={e => { e.stopPropagation(); exportSoalPDF(quiz.soal, quiz.meta, false); setPdfId(null) }}
+                        className="px-3 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold transition-all">
+                        Soal
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); exportSoalPDF(quiz.soal, quiz.meta, true); setPdfId(null) }}
+                        className="px-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition-all">
+                        Kunci
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); setPdfId(null) }}
+                        className="w-9 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs transition-all">
+                        <i className="bi bi-x-lg" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={e => { e.stopPropagation(); setPdfId(quiz.savedId); setDeleteId(null) }}
+                      title="Export PDF"
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:border-violet-500/30 border border-slate-700 text-slate-500 hover:text-violet-300 transition-all">
+                      <i className="bi bi-filetype-pdf" />
+                    </button>
+                  )}
                   {deleteId === quiz.savedId ? (
                     <div className="flex gap-1.5">
                       <button onClick={e => { e.stopPropagation(); handleDelete(quiz.savedId) }}
@@ -367,7 +391,7 @@ export default function SavedPage() {
                       </button>
                     </div>
                   ) : (
-                    <button onClick={e => { e.stopPropagation(); setDeleteId(quiz.savedId) }}
+                    <button onClick={e => { e.stopPropagation(); setDeleteId(quiz.savedId); setPdfId(null) }}
                       className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-red-500/10 hover:border-red-500/30 border border-slate-700 text-slate-500 hover:text-red-400 transition-all">
                       <i className="bi bi-trash3" />
                     </button>

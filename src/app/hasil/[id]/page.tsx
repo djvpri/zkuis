@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { saveQuiz, updateBestScore, recordAttempt } from '@/lib/saved'
+import { exportSoalPDF } from '@/lib/pdf'
 
 interface Soal {
   id: number; pertanyaan: string; tipe: string
@@ -157,6 +158,18 @@ export default function HasilPage({ params }: { params: { id: string } }) {
           </Link>
         )}
       </button>
+
+      {/* Export PDF */}
+      <div className="grid grid-cols-2 gap-3 mb-8">
+        <button onClick={() => exportSoalPDF(data.soal, data.meta, false)}
+          className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-sm font-semibold text-slate-300 transition-all">
+          <i className="bi bi-file-earmark-text" /> PDF Soal
+        </button>
+        <button onClick={() => exportSoalPDF(data.soal, data.meta, true)}
+          className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-slate-900 border border-slate-700 hover:border-emerald-500/50 hover:text-emerald-300 text-sm font-semibold text-slate-300 transition-all">
+          <i className="bi bi-file-earmark-check" /> PDF Kunci
+        </button>
+      </div>
 
       {/* Review soal */}
       <h2 className="font-bold mb-4 flex items-center gap-2">
