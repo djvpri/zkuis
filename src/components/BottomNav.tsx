@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 const NAV = [
   { href: '/',         icon: 'bi-house',              iconActive: 'bi-house-fill',              label: 'Home'      },
   { href: '/generate', icon: 'bi-lightning-charge',   iconActive: 'bi-lightning-charge-fill',   label: 'Generate'  },
+  { href: '/bank',     icon: 'bi-journal-text',       iconActive: 'bi-journal-text',            label: 'Bank Soal' },
   { href: '/saved',    icon: 'bi-bookmark',            iconActive: 'bi-bookmark-fill',           label: 'Tersimpan' },
 ]
 

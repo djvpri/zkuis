@@ -109,9 +109,11 @@ function GenerateForm() {
             <h1 className="font-bold text-xl">Generate Soal</h1>
             <p className="text-xs text-slate-400">Didukung Gemini AI</p>
           </div>
+          <Link href="/bank" className="hidden sm:flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors px-3 py-2 rounded-xl hover:bg-slate-800">
+            <i className="bi bi-journal-text text-base" /> Bank Soal
+          </Link>
           <Link href="/saved" className="hidden sm:flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors px-3 py-2 rounded-xl hover:bg-slate-800">
-            <i className="bi bi-bookmark text-base" />
-            Tersimpan
+            <i className="bi bi-bookmark text-base" /> Tersimpan
           </Link>
         </div>
 

@@ -27,6 +27,21 @@ model SavedQuiz {
   @@index([userEmail])
 }
 
+// Bank soal publik — CPNS/SKD dan ujian nasional lainnya.
+// Diisi via seeder (Gemini AI), bisa diakses tanpa login.
+model BankSoal {
+  id          String   @id @default(cuid())
+  kategori    String   // 'TWK' | 'TIU' | 'TKP'
+  subKategori String   // 'Pancasila' | 'Verbal' | 'Pelayanan Publik' | dst
+  judul       String
+  soal        Json     // SoalItem[]
+  jumlah      Int
+  level       String   @default("sedang")
+  createdAt   DateTime @default(now())
+
+  @@index([kategori])
+}
+
 // Riwayat pengerjaan kuis (skor per attempt) — untuk statistik/progress.
 model QuizAttempt {
   id          String     @id @default(cuid())

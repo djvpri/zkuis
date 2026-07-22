@@ -40,6 +40,10 @@ export default function HomePage() {
               className="text-sm text-slate-400 hover:text-white transition-colors hidden sm:block">
               ZOne SSO
             </Link>
+            <Link href="/bank"
+              className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors hidden sm:flex">
+              <i className="bi bi-journal-text" /> Bank Soal
+            </Link>
             <Link href="/saved"
               className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors hidden sm:flex">
               <i className="bi bi-bookmark" /> Tersimpan
