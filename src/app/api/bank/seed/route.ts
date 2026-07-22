@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest) {
           kategori: paket.kategori,
           subKategori: paket.subKategori,
           judul: paket.judul,
-          soal: parsed.soal,
+          soal: parsed.soal as unknown as Prisma.InputJsonValue,
           jumlah: parsed.soal.length,
           level: 'sedang',
         },
