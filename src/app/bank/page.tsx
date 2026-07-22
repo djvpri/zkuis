@@ -13,7 +13,7 @@ interface BankItem {
 }
 
 const TABS = [
-  { key: 'SEMUA', label: 'Semua', icon: 'bi-grid-fill' },
+  { key: 'SEMUA', label: 'Semua', icon: 'bi-grid-fill', desc: '' },
   { key: 'TWK',   label: 'TWK',   icon: 'bi-flag-fill',      color: 'text-blue-400',    desc: 'Tes Wawasan Kebangsaan' },
   { key: 'TIU',   label: 'TIU',   icon: 'bi-calculator-fill', color: 'text-violet-400',  desc: 'Tes Intelegensia Umum' },
   { key: 'TKP',   label: 'TKP',   icon: 'bi-person-check-fill', color: 'text-emerald-400', desc: 'Tes Karakteristik Pribadi' },
