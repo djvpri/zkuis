@@ -1,0 +1,5 @@
+# Railway/Nixpacks: pakai `npm install` (BUKAN `npm ci`) supaya package-lock.json
+# yang belum di-update setelah menambah dependency (Prisma) tetap di-reconcile
+# saat build — tak perlu update lockfile manual.
+[phases.install]
+cmds = ["npm install"]
