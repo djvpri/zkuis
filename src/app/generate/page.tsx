@@ -88,7 +88,7 @@ function GenerateForm() {
         meta: { topik: topik || 'Dari Materi', kategori, jumlah, tipe, level },
         timer: timerEnabled ? { duration: timerDuration, endsAt: Date.now() + timerDuration * 60 * 1000 } : null,
       }))
-      router.push(`/quiz/${id}`)
+      router.push(`/preview/${id}`)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Gagal menghubungi AI')
     } finally {

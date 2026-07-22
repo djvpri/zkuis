@@ -18,6 +18,7 @@ model SavedQuiz {
   level     String   @default("sedang")
   soal      Json
   bestScore Int?
+  shared    Boolean  @default(false) // true = bisa dibuka publik lewat /share/[id]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
