@@ -438,8 +438,8 @@ export default function SavedPage() {
                   ) : (
                     <button onClick={e => {
                       e.stopPropagation()
-                      setPdfId(null); setDeleteId(null)
-                      if (quiz.shared) { setShareMenuId(quiz.savedId) } else { void handleShare(quiz) }
+                      setPdfId(null); setDeleteId(null); setShareMenuId(null)
+                      void handleShare(quiz)
                     }} disabled={shareLoadingId === quiz.savedId}
                       title={quiz.shared ? 'Sudah dibagikan — klik untuk opsi' : 'Bagikan'}
                       className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all ${
