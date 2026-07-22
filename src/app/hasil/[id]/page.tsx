@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { saveQuiz, updateBestScore } from '@/lib/saved'
+import { saveQuiz, updateBestScore, recordAttempt } from '@/lib/saved'
 
 interface Soal {
   id: number; pertanyaan: string; tipe: string
@@ -28,14 +28,19 @@ export default function HasilPage({ params }: { params: { id: string } }) {
     if (!raw) { router.replace('/generate'); return }
     const parsed: HasilData = JSON.parse(raw)
     setData(parsed)
+    if (parsed.savedId) setSavedId(parsed.savedId)
 
-    if (parsed.savedId) {
-      setSavedId(parsed.savedId)
-      // Update best score jika ini adalah replay dari soal tersimpan
-      const pg = parsed.soal.filter(s => s.tipe === 'pilihan_ganda').length
-      const bn = Object.values(parsed.hasil).filter(h => h.benar).length
-      const sk = pg > 0 ? Math.round((bn / pg) * 100) : 100
-      updateBestScore(parsed.savedId, sk)
+    const pg = parsed.soal.filter(s => s.tipe === 'pilihan_ganda').length
+    const bn = Object.values(parsed.hasil).filter(h => h.benar).length
+    const sk = pg > 0 ? Math.round((bn / pg) * 100) : 100
+
+    // Update best score kalau replay dari soal tersimpan.
+    if (parsed.savedId) void updateBestScore(parsed.savedId, sk)
+
+    // Catat riwayat attempt sekali (hindari dobel saat refresh halaman hasil).
+    if (pg > 0 && !sessionStorage.getItem(`zkuis_rec_${id}`)) {
+      sessionStorage.setItem(`zkuis_rec_${id}`, '1')
+      void recordAttempt({ savedQuizId: parsed.savedId ?? null, topik: parsed.meta.topik, score: bn, total: pg })
     }
   }, [id, router])
 
@@ -52,9 +57,10 @@ export default function HasilPage({ params }: { params: { id: string } }) {
   const skorLabel = skor >= 80 ? 'Luar Biasa!' : skor >= 60 ? 'Cukup Baik' : 'Perlu Latihan Lagi'
   const skorDesc  = skor >= 80 ? 'Penguasaan materimu sangat baik.' : skor >= 60 ? 'Terus berlatih untuk hasil lebih baik.' : 'Jangan menyerah, ulangi latihan ini.'
 
-  function handleSave() {
+  async function handleSave() {
     if (savedId || !data) return
-    const newId = saveQuiz(data.soal, data.meta, skor)
+    const newId = await saveQuiz(data.soal, data.meta, skor)
+    if (!newId) return
     const updated = { ...data, savedId: newId }
     sessionStorage.setItem(`zkuis_hasil_${id}`, JSON.stringify(updated))
     setSavedId(newId)

@@ -66,7 +66,13 @@ export default function SavedPage() {
   const [editId, setEditId]           = useState<string | null>(null)
   const [editName, setEditName]       = useState('')
 
-  useEffect(() => { setList(getSaved()) }, [])
+  const [loadingList, setLoadingList] = useState(true)
+  useEffect(() => {
+    fetch('/api/auth/me').then((r) => {
+      if (r.status === 401) { router.replace('/login'); return }
+      getSaved().then(setList).finally(() => setLoadingList(false))
+    }).catch(() => setLoadingList(false))
+  }, [router])
 
   function prepSoal(soal: SoalItem[]): SoalItem[] {
     let s = [...soal]
@@ -112,7 +118,7 @@ export default function SavedPage() {
 
   function confirmEdit() {
     if (!editId || !editName.trim()) { setEditId(null); return }
-    renameQuiz(editId, editName)
+    void renameQuiz(editId, editName)
     setList(prev => prev.map(q =>
       q.savedId === editId ? { ...q, meta: { ...q.meta, topik: editName.trim() } } : q
     ))
@@ -120,7 +126,7 @@ export default function SavedPage() {
   }
 
   function handleDelete(savedId: string) {
-    deleteQuiz(savedId)
+    void deleteQuiz(savedId)
     setList(prev => prev.filter(q => q.savedId !== savedId))
     setDeleteId(null)
   }
@@ -136,7 +142,7 @@ export default function SavedPage() {
 
     const newId = crypto.randomUUID()
     sessionStorage.setItem(`zkuis_${newId}`, JSON.stringify({ soal: merged, meta, timer: makeTimer() }))
-    if (andSave) saveQuiz(merged, meta, null)
+    if (andSave) void saveQuiz(merged, meta, null)
     router.push(`/quiz/${newId}`)
   }
 
@@ -242,8 +248,15 @@ export default function SavedPage() {
         </div>
       )}
 
+      {loadingList && (
+        <div className="flex flex-col items-center justify-center py-24 text-center text-slate-500">
+          <i className="bi bi-arrow-repeat text-2xl animate-spin mb-3" />
+          <p className="text-sm">Memuat soal tersimpan…</p>
+        </div>
+      )}
+
       {/* Empty state */}
-      {list.length === 0 && (
+      {!loadingList && list.length === 0 && (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center mb-4">
             <i className="bi bi-bookmark text-2xl text-slate-600" />

@@ -1,3 +1,6 @@
+// Soal tersimpan — kini disimpan di Postgres per user (via SSO), bukan
+// localStorage. Semua fungsi async (memanggil /api/saved). Butuh login.
+
 export interface SoalItem {
   id: number
   pertanyaan: string
@@ -21,44 +24,69 @@ export interface SavedQuiz {
   bestScore: number | null
 }
 
-const KEY = 'zkuis_saved'
-
-export function getSaved(): SavedQuiz[] {
-  if (typeof window === 'undefined') return []
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]') } catch { return [] }
+export async function getSaved(): Promise<SavedQuiz[]> {
+  try {
+    const res = await fetch('/api/saved')
+    if (!res.ok) return []
+    const data = await res.json()
+    return (data.saved as SavedQuiz[]) || []
+  } catch { return [] }
 }
 
-export function saveQuiz(
+export async function saveQuiz(
   soal: SoalItem[],
   meta: SavedQuiz['meta'],
   score: number | null
-): string {
-  const list = getSaved()
-  const savedId = crypto.randomUUID()
-  list.unshift({ savedId, soal, meta, savedAt: new Date().toISOString(), bestScore: score })
-  localStorage.setItem(KEY, JSON.stringify(list))
-  return savedId
+): Promise<string | null> {
+  try {
+    const res = await fetch('/api/saved', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ soal, meta, score }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return (data.savedId as string) || null
+  } catch { return null }
 }
 
-export function updateBestScore(savedId: string, score: number) {
-  const list = getSaved()
-  const item = list.find(q => q.savedId === savedId)
-  if (item && (item.bestScore === null || score > item.bestScore)) {
-    item.bestScore = score
-    localStorage.setItem(KEY, JSON.stringify(list))
-  }
+export async function updateBestScore(savedId: string, score: number): Promise<void> {
+  try {
+    await fetch(`/api/saved/${savedId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bestScore: score }),
+    })
+  } catch { /* ignore */ }
 }
 
-export function deleteQuiz(savedId: string) {
-  const list = getSaved().filter(q => q.savedId !== savedId)
-  localStorage.setItem(KEY, JSON.stringify(list))
+export async function deleteQuiz(savedId: string): Promise<void> {
+  try { await fetch(`/api/saved/${savedId}`, { method: 'DELETE' }) } catch { /* ignore */ }
 }
 
-export function renameQuiz(savedId: string, newName: string) {
-  const list = getSaved()
-  const item = list.find(q => q.savedId === savedId)
-  if (item) {
-    item.meta.topik = newName.trim() || item.meta.topik
-    localStorage.setItem(KEY, JSON.stringify(list))
-  }
+export async function renameQuiz(savedId: string, newName: string): Promise<void> {
+  try {
+    await fetch(`/api/saved/${savedId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topik: newName }),
+    })
+  } catch { /* ignore */ }
+}
+
+// Catat hasil pengerjaan kuis (untuk riwayat/statistik).
+export async function recordAttempt(input: {
+  savedQuizId?: string | null
+  topik: string
+  score: number
+  total: number
+  durasiDetik?: number | null
+}): Promise<void> {
+  try {
+    await fetch('/api/attempt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+  } catch { /* ignore */ }
 }

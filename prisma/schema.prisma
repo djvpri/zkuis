@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Soal tersimpan milik satu user (dikaitkan ke email dari SSO Z One).
+model SavedQuiz {
+  id        String   @id @default(cuid())
+  userEmail String
+  topik     String
+  kategori  String   @default("")
+  jumlah    Int      @default(0)
+  tipe      String   @default("pilihan_ganda")
+  level     String   @default("sedang")
+  soal      Json
+  bestScore Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attempts QuizAttempt[]
+
+  @@index([userEmail])
+}
+
+// Riwayat pengerjaan kuis (skor per attempt) — untuk statistik/progress.
+model QuizAttempt {
+  id          String     @id @default(cuid())
+  userEmail   String
+  savedQuizId String?
+  savedQuiz   SavedQuiz? @relation(fields: [savedQuizId], references: [id], onDelete: SetNull)
+  topik       String     @default("")
+  score       Int
+  total       Int
+  durasiDetik Int?
+  createdAt   DateTime   @default(now())
+
+  @@index([userEmail])
+}
