@@ -22,7 +22,8 @@ model SavedQuiz {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  attempts QuizAttempt[]
+  attempts       QuizAttempt[]
+  publicAttempts PublicAttempt[]
 
   @@index([userEmail])
 }
@@ -55,4 +56,18 @@ model QuizAttempt {
   createdAt   DateTime   @default(now())
 
   @@index([userEmail])
+}
+
+// Attempt publik dari kuis yang dibagikan (tanpa login).
+model PublicAttempt {
+  id        String    @id @default(cuid())
+  savedId   String
+  saved     SavedQuiz @relation(fields: [savedId], references: [id], onDelete: Cascade)
+  nama      String
+  skor      Int
+  total     Int
+  durasi    Int?
+  createdAt DateTime  @default(now())
+
+  @@index([savedId, skor(sort: Desc)])
 }

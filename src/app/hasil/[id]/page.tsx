@@ -14,6 +14,9 @@ interface HasilData {
   meta: { topik: string; kategori: string; jumlah: number; tipe: string; level: string }
   hasil: Record<number, { jawaban: string; benar: boolean }>
   savedId?: string
+  fromShared?: string
+  namaPlayer?: string
+  startedAt?: number
 }
 
 export default function HasilPage({ params }: { params: { id: string } }) {
@@ -23,6 +26,7 @@ export default function HasilPage({ params }: { params: { id: string } }) {
   const [expand, setExpand]     = useState<number | null>(null)
   const [savedId, setSavedId]   = useState<string | null>(null)
   const [justSaved, setJustSaved] = useState(false)
+  const [sharedId, setSharedId] = useState<string | null>(null)
 
   useEffect(() => {
     const raw = sessionStorage.getItem(`zkuis_hasil_${id}`)
@@ -30,6 +34,7 @@ export default function HasilPage({ params }: { params: { id: string } }) {
     const parsed: HasilData = JSON.parse(raw)
     setData(parsed)
     if (parsed.savedId) setSavedId(parsed.savedId)
+    if (parsed.fromShared) setSharedId(parsed.fromShared)
 
     const pg = parsed.soal.filter(s => s.tipe === 'pilihan_ganda').length
     const bn = Object.values(parsed.hasil).filter(h => h.benar).length
@@ -42,6 +47,17 @@ export default function HasilPage({ params }: { params: { id: string } }) {
     if (pg > 0 && !sessionStorage.getItem(`zkuis_rec_${id}`)) {
       sessionStorage.setItem(`zkuis_rec_${id}`, '1')
       void recordAttempt({ savedQuizId: parsed.savedId ?? null, topik: parsed.meta.topik, score: bn, total: pg })
+    }
+
+    // Submit skor ke leaderboard publik jika berasal dari kuis yang dibagikan.
+    if (parsed.fromShared && parsed.namaPlayer && pg > 0 && !sessionStorage.getItem(`zkuis_shared_${id}`)) {
+      sessionStorage.setItem(`zkuis_shared_${id}`, '1')
+      const durasi = parsed.startedAt ? Math.round((Date.now() - parsed.startedAt) / 1000) : undefined
+      void fetch(`/api/share/${parsed.fromShared}/attempt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nama: parsed.namaPlayer, skor: bn, total: pg, durasi }),
+      })
     }
   }, [id, router])
 
@@ -121,6 +137,14 @@ export default function HasilPage({ params }: { params: { id: string } }) {
           </span>
         ))}
       </div>
+
+      {/* Tombol Lihat Leaderboard jika dari kuis dibagikan */}
+      {sharedId && (
+        <Link href={`/share/${sharedId}`}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 text-sm font-semibold transition-all mb-3">
+          <i className="bi bi-trophy-fill" /> Lihat Papan Skor
+        </Link>
+      )}
 
       {/* Actions */}
       <div className="grid grid-cols-2 gap-3 mb-3">
