@@ -60,7 +60,14 @@ Kembalikan HANYA JSON valid dengan format berikut (tanpa markdown, tanpa teks ta
   ]
 }`
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: {
+        responseMimeType: 'application/json',
+        maxOutputTokens: 65536, // cukup untuk sampai ~100 soal tanpa terpotong
+        temperature: 1,
+      },
+    })
     const result = await model.generateContent(prompt)
     const text = result.response.text().trim()
 

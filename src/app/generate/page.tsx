@@ -9,7 +9,7 @@ type Tipe = 'pilihan_ganda' | 'essay' | 'campuran'
 type Level = 'mudah' | 'sedang' | 'sulit'
 
 const KATEGORI = ['SMA / SMP', 'Perguruan Tinggi', 'CPNS / Sertifikasi', 'Umum / Trivia', 'IT & Coding', 'Kesehatan & Sains']
-const JUMLAH   = [5, 10, 15, 20]
+const JUMLAH   = [10, 20, 50, 100]
 
 function GenerateForm() {
   const router       = useRouter()
@@ -22,6 +22,8 @@ function GenerateForm() {
   const [jumlah, setJumlah]     = useState(10)
   const [tipe, setTipe]         = useState<Tipe>('pilihan_ganda')
   const [level, setLevel]       = useState<Level>('sedang')
+  const [timerEnabled, setTimerEnabled]   = useState(false)
+  const [timerDuration, setTimerDuration] = useState(30)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
 
@@ -47,7 +49,11 @@ function GenerateForm() {
       if (!res.ok) throw new Error(data.error || 'Gagal generate soal')
 
       const id = crypto.randomUUID()
-      sessionStorage.setItem(`zkuis_${id}`, JSON.stringify({ soal: data.soal, meta: { topik: topik || 'Dari Materi', kategori, jumlah, tipe, level } }))
+      sessionStorage.setItem(`zkuis_${id}`, JSON.stringify({
+        soal: data.soal,
+        meta: { topik: topik || 'Dari Materi', kategori, jumlah, tipe, level },
+        timer: timerEnabled ? { duration: timerDuration, endsAt: Date.now() + timerDuration * 60 * 1000 } : null,
+      }))
       router.push(`/quiz/${id}`)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Gagal menghubungi AI')
@@ -132,10 +138,10 @@ function GenerateForm() {
           {/* Jumlah soal */}
           <div>
             <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">Jumlah Soal</label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {JUMLAH.map(n => (
                 <button key={n} onClick={() => setJumlah(n)}
-                  className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-all ${
+                  className={`flex-1 min-w-[56px] py-3 rounded-xl text-sm font-bold border transition-all ${
                     jumlah === n
                       ? 'bg-violet-600 border-violet-500 text-white'
                       : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
@@ -143,7 +149,12 @@ function GenerateForm() {
                   {n}
                 </button>
               ))}
+              <input type="number" min={1} max={100} value={jumlah}
+                onChange={e => setJumlah(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
+                className="w-20 bg-slate-900 border border-slate-700 focus:border-violet-500 rounded-xl px-2 py-3 text-sm text-white text-center outline-none"
+                aria-label="Jumlah soal custom" />
             </div>
+            <p className="text-xs text-slate-600 mt-1.5">Bisa diketik manual — maksimal 100 soal.</p>
           </div>
 
           {/* Tipe & Level */}
@@ -168,6 +179,38 @@ function GenerateForm() {
             </div>
           </div>
 
+          {/* Waktu pengerjaan (timer) */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Waktu Pengerjaan</label>
+              <button type="button" onClick={() => setTimerEnabled(v => !v)} className="flex items-center gap-2">
+                <div className={`w-9 h-5 rounded-full transition-colors relative ${timerEnabled ? 'bg-violet-600' : 'bg-slate-700'}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${timerEnabled ? 'left-4' : 'left-0.5'}`} />
+                </div>
+                <span className={`text-xs ${timerEnabled ? 'text-violet-300' : 'text-slate-500'}`}>{timerEnabled ? 'Aktif' : 'Tanpa batas'}</span>
+              </button>
+            </div>
+            {timerEnabled && (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  {[15, 30, 60, 90].map(min => (
+                    <button key={min} type="button" onClick={() => setTimerDuration(min)}
+                      className={`flex-1 min-w-[56px] py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                        timerDuration === min ? 'bg-amber-500/15 border-amber-500/50 text-amber-300' : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+                      }`}>
+                      {min} mnt
+                    </button>
+                  ))}
+                  <input type="number" min={1} max={300} value={timerDuration}
+                    onChange={e => setTimerDuration(Math.max(1, Math.min(300, Number(e.target.value) || 1)))}
+                    className="w-20 bg-slate-900 border border-slate-700 focus:border-amber-500 rounded-xl px-2 py-2.5 text-sm text-white text-center outline-none"
+                    aria-label="Durasi timer menit" />
+                </div>
+                <p className="text-xs text-amber-400/70 mt-1.5"><i className="bi bi-clock me-1" />Kuis otomatis berakhir setelah {timerDuration} menit.</p>
+              </>
+            )}
+          </div>
+
           {error && (
             <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-xl px-4 py-3">
               <i className="bi bi-exclamation-triangle shrink-0 mt-0.5" /> {error}
@@ -189,7 +232,7 @@ function GenerateForm() {
 
           {loading && (
             <p className="text-center text-xs text-slate-500 animate-pulse">
-              Biasanya butuh 5–15 detik tergantung jumlah soal...
+              Biasanya 5–15 detik; untuk 50–100 soal bisa ~30–60 detik...
             </p>
           )}
         </div>
