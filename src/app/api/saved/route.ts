@@ -21,6 +21,7 @@ export async function GET() {
       meta: { topik: r.topik, kategori: r.kategori, jumlah: r.jumlah, tipe: r.tipe, level: r.level },
       savedAt: r.createdAt.toISOString(),
       bestScore: r.bestScore,
+      shared: r.shared,
     })),
   })
 }

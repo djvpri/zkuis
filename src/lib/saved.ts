@@ -22,6 +22,7 @@ export interface SavedQuiz {
   }
   savedAt: string
   bestScore: number | null
+  shared: boolean
 }
 
 export async function getSaved(): Promise<SavedQuiz[]> {

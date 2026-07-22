@@ -67,6 +67,9 @@ export default function SavedPage() {
   const [timerDuration, setTimerDuration] = useState(30)
   const [editId, setEditId]           = useState<string | null>(null)
   const [editName, setEditName]       = useState('')
+  const [shareLoadingId, setShareLoadingId] = useState<string | null>(null)
+  const [shareMenuId, setShareMenuId]       = useState<string | null>(null)
+  const [toast, setToast]                   = useState('')
 
   const [loadingList, setLoadingList] = useState(true)
   useEffect(() => {
@@ -125,6 +128,44 @@ export default function SavedPage() {
       q.savedId === editId ? { ...q, meta: { ...q.meta, topik: editName.trim() } } : q
     ))
     setEditId(null)
+  }
+
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2600)
+  }
+
+  async function handleShare(quiz: SavedQuiz) {
+    setShareLoadingId(quiz.savedId)
+    try {
+      if (!quiz.shared) {
+        await fetch(`/api/saved/${quiz.savedId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shared: true }),
+        })
+        setList(prev => prev.map(q => q.savedId === quiz.savedId ? { ...q, shared: true } : q))
+      }
+      const url = `${location.origin}/share/${quiz.savedId}`
+      if (navigator.share) {
+        await navigator.share({ title: quiz.meta.topik, text: `Coba kuis ini: ${quiz.meta.topik}`, url })
+      } else {
+        await navigator.clipboard.writeText(url)
+        showToast('Link disalin!')
+      }
+    } catch { /* share dibatalkan user */ }
+    setShareLoadingId(null)
+  }
+
+  async function handleUnshare(savedId: string) {
+    await fetch(`/api/saved/${savedId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shared: false }),
+    })
+    setList(prev => prev.map(q => q.savedId === savedId ? { ...q, shared: false } : q))
+    setShareMenuId(null)
+    showToast('Kuis dijadikan privat')
   }
 
   function handleDelete(savedId: string) {
@@ -373,12 +414,46 @@ export default function SavedPage() {
                       </button>
                     </div>
                   ) : (
-                    <button onClick={e => { e.stopPropagation(); setPdfId(quiz.savedId); setDeleteId(null) }}
+                    <button onClick={e => { e.stopPropagation(); setPdfId(quiz.savedId); setDeleteId(null); setShareMenuId(null) }}
                       title="Export PDF"
                       className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:border-violet-500/30 border border-slate-700 text-slate-500 hover:text-violet-300 transition-all">
                       <i className="bi bi-filetype-pdf" />
                     </button>
                   )}
+                  {shareMenuId === quiz.savedId ? (
+                    <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { void navigator.clipboard.writeText(`${location.origin}/share/${quiz.savedId}`); showToast('Link disalin!'); setShareMenuId(null) }}
+                        className="px-3 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold transition-all">
+                        Salin Link
+                      </button>
+                      <button onClick={() => handleUnshare(quiz.savedId)}
+                        className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-red-500/10 hover:border-red-500/30 border border-slate-700 text-slate-400 hover:text-red-400 text-xs font-semibold transition-all">
+                        Privat
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); setShareMenuId(null) }}
+                        className="w-9 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs transition-all">
+                        <i className="bi bi-x-lg" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={e => {
+                      e.stopPropagation()
+                      setPdfId(null); setDeleteId(null)
+                      if (quiz.shared) { setShareMenuId(quiz.savedId) } else { void handleShare(quiz) }
+                    }} disabled={shareLoadingId === quiz.savedId}
+                      title={quiz.shared ? 'Sudah dibagikan — klik untuk opsi' : 'Bagikan'}
+                      className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-all ${
+                        quiz.shared
+                          ? 'bg-violet-500/10 border-violet-500/40 text-violet-400 hover:bg-violet-500/20'
+                          : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-violet-300 hover:border-violet-500/30'
+                      } disabled:opacity-50`}>
+                      {shareLoadingId === quiz.savedId
+                        ? <i className="bi bi-arrow-repeat animate-spin text-sm" />
+                        : <i className={`bi ${quiz.shared ? 'bi-link-45deg' : 'bi-share'} text-sm`} />
+                      }
+                    </button>
+                  )}
+
                   {deleteId === quiz.savedId ? (
                     <div className="flex gap-1.5">
                       <button onClick={e => { e.stopPropagation(); handleDelete(quiz.savedId) }}
@@ -391,7 +466,7 @@ export default function SavedPage() {
                       </button>
                     </div>
                   ) : (
-                    <button onClick={e => { e.stopPropagation(); setDeleteId(quiz.savedId); setPdfId(null) }}
+                    <button onClick={e => { e.stopPropagation(); setDeleteId(quiz.savedId); setPdfId(null); setShareMenuId(null) }}
                       className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-red-500/10 hover:border-red-500/30 border border-slate-700 text-slate-500 hover:text-red-400 transition-all">
                       <i className="bi bi-trash3" />
                     </button>
@@ -434,6 +509,13 @@ export default function SavedPage() {
               <p className="text-center text-xs text-slate-600 mt-2">Pilih minimal 2 set soal untuk digabung</p>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white shadow-xl whitespace-nowrap animate-fade-in">
+          <i className="bi bi-check-circle-fill text-violet-400 me-2" />{toast}
         </div>
       )}
 
